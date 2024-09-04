@@ -11,29 +11,28 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 from flask import Flask, jsonify
-
-
+import os
+os.chdir(os.path.dirname(__file__))
 #################################################
 # Database Setup
 #################################################
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
-Base = automap_base
+Base = automap_base()
 # reflect the tables
-Base.prepare(autoload_with = engine)
+Base.prepare(autoload_with=engine)
 
 # Save references to each table
 Measurement = Base.classes.measurement
 Station = Base.classes.station
 # Create our session (link) from Python to the DB
-sesssion= Session(engine)
+session = Session(engine)
 
 #################################################
 # Flask Setup
 #################################################
 app = Flask(__name__)
-
 
 #################################################
 # Flask Routes
@@ -43,13 +42,15 @@ app = Flask(__name__)
 def welcome():
     """ List all available API routes."""
     return(
-        f"Available routes:<br/>"
+        f"Welcome to the Climate API!<br/>"
+        f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/temp/<start><br/>"
-        f"/api/v1.0/temp/<start>/<end><br/>"
-        f"<p>'Start' and 'End' must be in YYYY-MM-DD format, from 2010-01-01 to 2017-08-23.</p>"
+        f"/api/v1.0/temp/&lt;start&gt;<br/>"
+        f"/api/v1.0/temp/&lt;start&gt;/&lt;end&gt;"
+        
+        
     )
 # 2. Convert the query results from your precipitation analysis
 # to a dictionary using date as the key and prcp as the value.
@@ -66,7 +67,8 @@ def precipitation():
     prior_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
     # Perform a query to retrieve the data and precipitation
-    results = session.query(Measurement.date, Measurement.prcp).filter(Measurement.date >= prior_year).all()
+    results = session.query(Measurement.date, Measurement.prcp).\
+    filter(Measurement.date >= prior_year).all()
 
     # close the session
     session.close()
@@ -148,6 +150,7 @@ def tobs():
     # Return JSON
     return jsonify(all_values)
     
+    # Select statement
     
 @app.route("/api/v1.0/temp/<start>")
 def start_date(start):
@@ -156,15 +159,19 @@ def start_date(start):
     For a specified start, calculate TMIN, TAVG, and TMAX for all the dates
     greater than or equal to the start date"""
     # Create our session (link) from Python to the DB.
+    
     session = Session(engine)
+    # Select statement
+    sel = [func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
 
     # Query min temp, avg temp, and max temp for date greater than or equal to start date
     start = dt.datetime.strptime(start, "%Y-%m-%d")
-    start_date_query = session.query(
-        func.min(Measurement.tobs),\
-        func.avg(Measurement.tobs),\
-        func.max(Measurement.tobs)).\
-        filter(Measurement.date >= start).all()
+    # start_date_query = session.query(
+    #     func.min(Measurement.tobs),\
+    #     func.avg(Measurement.tobs),\
+    #     func.max(Measurement.tobs)).\
+    #     filter(Measurement.date >= start).all()
+    start_date_query = session.query(*sel).filter(Measurement.date>=start).all()
     
     # Close the session
     session.close()
@@ -187,16 +194,20 @@ def start_end_date(start, end):
     and end date, calculate TMIN, TAVG, and TMAX for the dates from the start date 
     to the end date, inclusive."""
     # Create our session (link) from Python to the DB.
+    
     session = Session(engine)
+    sel = [func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
 
-    # Query min temp, avg temp, and max temp for dates between start and end dates
+    # Query min temp, avg temp, and max temp for date greater than or equal to start date
     start = dt.datetime.strptime(start, "%Y-%m-%d")
     end = dt.datetime.strptime(end, "%Y-%m-%d")
-    start_end_date_query = session.query(
-        func.min(Measurement.tobs),
-        func.avg(Measurement.tobs),
-        func.max(Measurement.tobs)).\
-        filter(Measurement.date >= start, Measurement.date <= end).all()
+    # start_date_query = session.query(
+    #     func.min(Measurement.tobs),\
+    #     func.avg(Measurement.tobs),\
+    #     func.max(Measurement.tobs)).\
+    #     filter(Measurement.date >= start).all()
+    start_end_date_query = session.query(*sel)\
+    .filter(Measurement.date >= start,Measurement.date <= end).all()
     
     # Close the session
     session.close()
